@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import WebKit
 
 public enum YouTubePlayerState: String {
     case Unstarted = "-1"
@@ -66,11 +67,11 @@ public func videoIDFromYouTubeURL(_ videoURL: URL) -> String? {
 }
 
 /** Embed and control YouTube videos */
-open class YouTubePlayerView: UIView, UIWebViewDelegate {
-
+open class YouTubePlayerView: UIView, WKUIDelegate, WKNavigationDelegate {
+    
     public typealias YouTubePlayerParameters = [String: AnyObject]
 
-    fileprivate var webView: UIWebView!
+    fileprivate var webView: WKWebView!
 
     /** The readiness of the player */
     fileprivate(set) open var ready = false
@@ -87,7 +88,7 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     /** Used to respond to player events */
     open var delegate: YouTubePlayerDelegate?
 
-    // MARK: Various methods for initialization
+    // MARK: - Various methods for initialization
 /*
     public init() {
         super.init()
@@ -114,13 +115,16 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 
 
-    // MARK: Web view initialization
+    // MARK: - Web view initialization
 
     fileprivate func buildWebView(_ parameters: [String: AnyObject]) {
-        webView = UIWebView()
-        webView.allowsInlineMediaPlayback = true
-        webView.mediaPlaybackRequiresUserAction = false
-        webView.delegate = self
+        let webConfiguration = WKWebViewConfiguration()
+        webConfiguration.allowsInlineMediaPlayback = true
+        webConfiguration.preferences.javaScriptEnabled = true
+        webConfiguration.allowsInlineMediaPlayback = true
+        webView = WKWebView(frame: .zero, configuration: webConfiguration)
+        webView.uiDelegate = self
+        webView.navigationDelegate = self
         webView.backgroundColor = UIColor.clear
         webView.isOpaque = false
         webView.scrollView.bounces = false
@@ -128,7 +132,7 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 
 
-    // MARK: Load player
+    // MARK: - Load player
 
     open func loadVideoURL(_ videoURL: URL) {
         if let videoID = videoIDFromYouTubeURL(videoURL) {
@@ -152,7 +156,7 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 
 
-    // MARK: Player controls
+    // MARK: - Player controls
 
     open func play() {
         evaluatePlayerCommand("playVideo()")
@@ -174,7 +178,7 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
         evaluatePlayerCommand("seekTo(\(seconds), \(seekAhead))")
     }
 
-    // MARK: Playlist controls
+    // MARK: - Playlist controls
 
     open func previousVideo() {
         evaluatePlayerCommand("previousVideo()")
@@ -186,11 +190,11 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
 
     fileprivate func evaluatePlayerCommand(_ command: String) {
         let fullCommand = "player." + command + ";"
-        webView.stringByEvaluatingJavaScript(from: fullCommand)
+        webView.evaluateJavaScript(fullCommand)
     }
 
 
-    // MARK: Player setup
+    // MARK: - Player setup
 
     fileprivate func loadWebViewWithParameters(_ parameters: YouTubePlayerParameters) {
 
@@ -234,7 +238,7 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 
 
-    // MARK: Player parameters and defaults
+    // MARK: - Player parameters and defaults
 
     fileprivate func playerParameters() -> YouTubePlayerParameters {
 
@@ -276,11 +280,11 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
         }
 
         // Success, return JSON string
-        return NSString(data: jsonData!, encoding: String.Encoding.utf8.rawValue) as String?
+        return NSString(data: jsonData!, encoding: String.Encoding.utf8.rawValue) as? String
     }
 
 
-    // MARK: JS Event Handling
+    // MARK: - JS Event Handling
 
     fileprivate func handleJSEvent(_ eventURL: URL) {
 
@@ -321,9 +325,9 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 
 
-    // MARK: UIWebViewDelegate
+    // MARK: - WKUIDelegate
 
-    open func webView(_ webView: UIWebView, shouldStartLoadWith request: URLRequest, navigationType: UIWebView.NavigationType) -> Bool {
+    open func webView(_ webView: WKWebView, shouldStartLoadWith request: URLRequest, navigationType: UIWebView.NavigationType) -> Bool {
 
         let url = request.url
 
